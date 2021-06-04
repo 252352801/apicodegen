@@ -12,16 +12,19 @@ export interface FileGenerateData extends GenerateData {
 
 export interface EntityGenerateData extends ClassGenerateData {
     description?: string;
-    dependencies: string;
+    dependencies: string[];
     type: string;
+    extension?: string;
     properties: Definition[];
 }
 
 export interface HttpServiceGenerateData extends ClassGenerateData {
     description?: string;
-    dependencies: string;
+    dependencies: string[];
     apis?: ApiData[];
     prefix?: string;
+    extension?: string;
+    entitiesPath?: string;
 }
 export interface ApiData {
     description?: string;
@@ -45,5 +48,10 @@ export interface ParametersData {
     name?: string;
     required?: boolean;
     type?: Definition;
+}
+
+export interface Dependence {
+    name: string;
+    path: string;
 }
 

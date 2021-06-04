@@ -1,8 +1,8 @@
 import { getLowerCamelCase, getKebabCase, getUpperCamelCase } from '../uitls/caseUtils';
 import { getTypeString } from '../uitls/classUtils';
 import ClassGenerator from './ClassGenerator';
-import { ApiData, Definition, HttpServiceGenerateData, ParametersData } from '../core';
-
+import { ApiData, Definition, HttpServiceGenerateData, ParametersData, Dependence} from '../core';
+import path from 'path';
 
 export default class HttpServiceGenerator extends ClassGenerator {
 
@@ -24,6 +24,15 @@ export default class HttpServiceGenerator extends ClassGenerator {
             return this.getDependence(api.result);
         });
         return [...new Set(dependencies)];
+    }
+
+    genImportations(apis: ApiData[] = [], targetPath: string, entitiesPath: string): Dependence[] {
+        const  dependencies = this.apisToDependencies(apis);
+        const relativePath = path.join(path.relative(targetPath, entitiesPath), '/');
+        return  dependencies.map(dep => ({
+            name: dep,
+            path: relativePath
+        }));
     }
 
     /**
@@ -59,29 +68,56 @@ export default class HttpServiceGenerator extends ClassGenerator {
 
     getTemplateModel(data: HttpServiceGenerateData): any {
         const name = getUpperCamelCase(data.data.prefix ? data.data.prefix + data.name : data.name).replace('Controller', '');
-        const data2 = {
+        const model = {
             ...data,
             name,
-            filename: `${getKebabCase(name)}.service.ts`,
+            filename: `${getKebabCase(name)}.service${data.extension}`,
             dependencies: this.apisToDependencies(data.apis),
+            importations: this.genImportations(data.apis, data.targetPath, data.entitiesPath),
             apis: data.apis.map(value => {
-                const params = value.parameters == null ? [] : value.parameters
-                .filter(subValue => subValue.in === 'body' || subValue.in === 'path' || subValue.in === 'query').map(subValue => {
-                    return {
-                        ...subValue,
-                        typeString: getTypeString(subValue.type)
-                    };
+                const allParameters = value.parameters == null ? [] : value.parameters;
+                const parameters = allParameters
+                .filter(param => ['body', 'path', 'query', 'header'].includes(param.in)).map(param => ({
+                        ...param,
+                        typeString: getTypeString(param.type)
+                })).sort((a, b) => {
+                    return (+b.required) - (+a.required);
                 });
+                const dataItems: any = [];
+                const paramsItems: any = [];
+                const headerItems: any = []; // allParameters.filter(param => param.in === 'header');
+                parameters.forEach(param => {
+                    if (param.in === 'body') {
+                        dataItems.push(param);
+                    } else if (param.in === 'path' || param.in === 'query') {
+                        paramsItems.push(param);
+                    } else if (param.in === 'header') {
+                        headerItems.push(param);
+                    }
+                });
+                const apiName = getLowerCamelCase(value.name);
+                const apiTypeName = apiName.replace(/(^\w)/, $1 => $1.toUpperCase());
                 return {
                     ...value,
-                    name: getLowerCamelCase(value.name),
+                    name: apiName,
                     returnType: getTypeString(value.result),
-                    params
+                    data: dataItems.length ? {
+                        name: `${apiTypeName}Data`,
+                        fields: dataItems,
+                    } : null,
+                    params: paramsItems.length ? {
+                        name: `${apiTypeName}Params`,
+                        fields: paramsItems
+                    } : null,
+                    headers: headerItems.length ? {
+                        name: `${apiTypeName}Headers`,
+                        fields: headerItems
+                    } : null,
                 };
             }),
         };
         return {
-            ...data2,
+            ...model,
             bodyString() {
                 const params: ParametersData[] = this.params;
                 const queryParams = params ? params.filter((value: ParametersData) => value.in === 'query') : [];
@@ -92,8 +128,6 @@ export default class HttpServiceGenerator extends ClassGenerator {
                     str += queryParams.map(value => value.name).join(', ');
                     str += '}';
                     return str === '{}' ? '' : str;
-                } else if (bodyParams && bodyParams.length === 1 && bodyParams[0].in === 'body') {
-                    str += `${bodyParams[0].name}`;
                 } else {
                     str += '{';
                     str += bodyParams.map(value => value.name).join(', ');

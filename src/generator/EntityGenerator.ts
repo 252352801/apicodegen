@@ -63,7 +63,7 @@ export default class EntityGenerator extends ClassGenerator {
         return {
             name: data.name,
             description: data.description,
-            filename: `${data.name}.ts`,
+            filename: `${data.name}${data.extension}`,
             properties: data.properties && data.properties.map((value) => {
                 return {
                     ...value,

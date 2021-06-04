@@ -2,17 +2,43 @@
 
 Object.defineProperty(exports, '__esModule', { value: true });
 
-function _interopDefault (ex) { return (ex && (typeof ex === 'object') && 'default' in ex) ? ex['default'] : ex; }
-
 require('../node_modules/core-js/es7/array.js');
-var fse = _interopDefault(require('fs-extra'));
-var micromatch = _interopDefault(require('micromatch'));
+var fse = require('fs-extra');
+var micromatch = require('micromatch');
 var path = require('path');
-var path__default = _interopDefault(path);
-var fs = _interopDefault(require('fs'));
-var Mustache = _interopDefault(require('mustache'));
-var axios = _interopDefault(require('axios'));
-var program = _interopDefault(require('../node_modules/commander/index.js'));
+var fs = require('fs');
+var Mustache = require('mustache');
+var axios = require('axios');
+
+function _interopDefaultLegacy (e) { return e && typeof e === 'object' && 'default' in e ? e : { 'default': e }; }
+
+function _interopNamespace(e) {
+    if (e && e.__esModule) return e;
+    var n = Object.create(null);
+    if (e) {
+        Object.keys(e).forEach(function (k) {
+            if (k !== 'default') {
+                var d = Object.getOwnPropertyDescriptor(e, k);
+                Object.defineProperty(n, k, d.get ? d : {
+                    enumerable: true,
+                    get: function () {
+                        return e[k];
+                    }
+                });
+            }
+        });
+    }
+    n['default'] = e;
+    return Object.freeze(n);
+}
+
+var fse__default = /*#__PURE__*/_interopDefaultLegacy(fse);
+var micromatch__default = /*#__PURE__*/_interopDefaultLegacy(micromatch);
+var path__default = /*#__PURE__*/_interopDefaultLegacy(path);
+var path__namespace = /*#__PURE__*/_interopNamespace(path);
+var fs__default = /*#__PURE__*/_interopDefaultLegacy(fs);
+var Mustache__default = /*#__PURE__*/_interopDefaultLegacy(Mustache);
+var axios__default = /*#__PURE__*/_interopDefaultLegacy(axios);
 
 /*! *****************************************************************************
 Copyright (c) Microsoft Corporation. All rights reserved.
@@ -38,19 +64,23 @@ function __awaiter(thisArg, _arguments, P, generator) {
     });
 }
 
-const defaultConfigPath = 'generate.conf.js';
+const defaultConfigPath = 'apicodegen.config.js';
+const pkgName = require('../package.json').name;
 const defaultConfig = {
     path: 'src/app/api',
-    servicePath: '/http',
-    entityPath: '/entity',
+    servicePath: '/services',
+    entityPath: '/entities',
     projects: [],
     apiType: 'swagger',
-    serviceTemplatePath: 'node_modules/api-service-generator/template/service.js',
-    entityTemplatePath: 'node_modules/api-service-generator/template/entity.js',
-    assetsPath: 'node_modules/api-service-generator/template/assets'
+    serviceTemplatePath: `node_modules/${pkgName}/template/service.template.ts`,
+    entityTemplatePath: `node_modules/${pkgName}/template/entity.template.ts`,
+    // assetsPath: 'node_modules/api-service-generator/template/assets',
+    lang: 'ts',
+    isService: true,
+    isEntity: true
 };
 function loadConfig(configPath = defaultConfigPath) {
-    const absolutePath = path__default.join(process.cwd(), configPath);
+    const absolutePath = path__default['default'].join(process.cwd(), configPath);
     try {
         const userConfig = require(absolutePath);
         return Object.assign(Object.assign({}, defaultConfig), userConfig);
@@ -60,13 +90,28 @@ function loadConfig(configPath = defaultConfigPath) {
     }
 }
 
+function rmdirsSync(rmPath) {
+    if (fs__default['default'].existsSync(rmPath)) {
+        const files = fs__default['default'].readdirSync(rmPath);
+        files.forEach((file) => {
+            const curPath = path__default['default'].join(rmPath, file);
+            if (fs__default['default'].statSync(curPath).isDirectory()) {
+                rmdirsSync(curPath); // 递归删除文件夹
+            }
+            else {
+                fs__default['default'].unlinkSync(curPath); // 删除文件
+            }
+        });
+        fs__default['default'].rmdirSync(rmPath);
+    }
+}
 function mkdirsSync(dirPath) {
-    if (fs.existsSync(dirPath)) {
+    if (fs__default['default'].existsSync(dirPath)) {
         return true;
     }
     else {
-        if (mkdirsSync(path__default.dirname(dirPath))) {
-            fs.mkdirSync(dirPath);
+        if (mkdirsSync(path__default['default'].dirname(dirPath))) {
+            fs__default['default'].mkdirSync(dirPath);
             return true;
         }
     }
@@ -75,12 +120,12 @@ function mkdirsSync(dirPath) {
 class FileGenerator {
     generate(data) {
         const templateModel = this.getTemplateModel(data);
-        const content = Mustache.render(require(path.join(process.cwd(), data.templatePath)), templateModel);
+        const content = Mustache__default['default'].render(require(path__namespace.join(process.cwd(), data.templatePath)), templateModel);
         this.writeFile(data.targetPath, templateModel.filename, content);
     }
     writeFile(targetPath, filename, content) {
         mkdirsSync(targetPath);
-        fs.writeFileSync(path.join(targetPath, filename), content);
+        fs__default['default'].writeFileSync(path__namespace.join(targetPath, filename), content);
     }
 }
 
@@ -145,7 +190,7 @@ class EntityGenerator extends ClassGenerator {
         return {
             name: data.name,
             description: data.description,
-            filename: `${data.name}.ts`,
+            filename: `${data.name}${data.extension}`,
             properties: data.properties && data.properties.map((value) => {
                 return Object.assign(Object.assign({}, value), { typeStr: this.getTypeString(value) });
             }),
@@ -221,6 +266,14 @@ class HttpServiceGenerator extends ClassGenerator {
         });
         return [...new Set(dependencies)];
     }
+    genImportations(apis = [], targetPath, entitiesPath) {
+        const dependencies = this.apisToDependencies(apis);
+        const relativePath = path__default['default'].join(path__default['default'].relative(targetPath, entitiesPath), '/');
+        return dependencies.map(dep => ({
+            name: dep,
+            path: relativePath
+        }));
+    }
     /**
      * 获取依赖数组
      * @param definitions
@@ -254,14 +307,40 @@ class HttpServiceGenerator extends ClassGenerator {
     }
     getTemplateModel(data) {
         const name = getUpperCamelCase(data.data.prefix ? data.data.prefix + data.name : data.name).replace('Controller', '');
-        const data2 = Object.assign(Object.assign({}, data), { name, filename: `${getKebabCase(name)}.service.ts`, dependencies: this.apisToDependencies(data.apis), apis: data.apis.map(value => {
-                const params = value.parameters == null ? [] : value.parameters
-                    .filter(subValue => subValue.in === 'body' || subValue.in === 'path' || subValue.in === 'query').map(subValue => {
-                    return Object.assign(Object.assign({}, subValue), { typeString: getTypeString(subValue.type) });
+        const model = Object.assign(Object.assign({}, data), { name, filename: `${getKebabCase(name)}.service${data.extension}`, dependencies: this.apisToDependencies(data.apis), importations: this.genImportations(data.apis, data.targetPath, data.entitiesPath), apis: data.apis.map(value => {
+                const allParameters = value.parameters == null ? [] : value.parameters;
+                const parameters = allParameters
+                    .filter(param => ['body', 'path', 'query', 'header'].includes(param.in)).map(param => (Object.assign(Object.assign({}, param), { typeString: getTypeString(param.type) }))).sort((a, b) => {
+                    return (+b.required) - (+a.required);
                 });
-                return Object.assign(Object.assign({}, value), { name: getLowerCamelCase(value.name), returnType: getTypeString(value.result), params });
+                const dataItems = [];
+                const paramsItems = [];
+                const headerItems = []; // allParameters.filter(param => param.in === 'header');
+                parameters.forEach(param => {
+                    if (param.in === 'body') {
+                        dataItems.push(param);
+                    }
+                    else if (param.in === 'path' || param.in === 'query') {
+                        paramsItems.push(param);
+                    }
+                    else if (param.in === 'header') {
+                        headerItems.push(param);
+                    }
+                });
+                const apiName = getLowerCamelCase(value.name);
+                const apiTypeName = apiName.replace(/(^\w)/, $1 => $1.toUpperCase());
+                return Object.assign(Object.assign({}, value), { name: apiName, returnType: getTypeString(value.result), data: dataItems.length ? {
+                        name: `${apiTypeName}Data`,
+                        fields: dataItems,
+                    } : null, params: paramsItems.length ? {
+                        name: `${apiTypeName}Params`,
+                        fields: paramsItems
+                    } : null, headers: headerItems.length ? {
+                        name: `${apiTypeName}Headers`,
+                        fields: headerItems
+                    } : null });
             }) });
-        return Object.assign(Object.assign({}, data2), { bodyString() {
+        return Object.assign(Object.assign({}, model), { bodyString() {
                 const params = this.params;
                 const queryParams = params ? params.filter((value) => value.in === 'query') : [];
                 const bodyParams = params ? params.filter((value) => value.in === 'body') : [];
@@ -271,9 +350,6 @@ class HttpServiceGenerator extends ClassGenerator {
                     str += queryParams.map(value => value.name).join(', ');
                     str += '}';
                     return str === '{}' ? '' : str;
-                }
-                else if (bodyParams && bodyParams.length === 1 && bodyParams[0].in === 'body') {
-                    str += `${bodyParams[0].name}`;
                 }
                 else {
                     str += '{';
@@ -312,7 +388,7 @@ class SwaggerParser {
     loadResponse() {
         return __awaiter(this, void 0, void 0, function* () {
             try {
-                this.response = yield axios.get(this.url);
+                this.response = yield axios__default['default'].get(this.url);
             }
             catch (e) {
                 throw new Error('swagger接口请求失败：\n' + e);
@@ -358,7 +434,7 @@ class SwaggerParser {
             const methods = paths[pathsKey];
             return Object.keys(methods).map((methodsKey) => {
                 const method = methods[methodsKey];
-                return Object.assign(Object.assign({}, method), { path: pathsKey, method: methodsKey, name: this.getApiName(pathsKey, methodsKey), result: this.definitionToType(method.responses['200'].schema), description: method.summary, parameters: method.parameters && method.parameters.map((value) => {
+                return Object.assign(Object.assign({}, method), { path: pathsKey, method: methodsKey, name: method.operationId, result: this.definitionToType(method.responses['200'].schema), description: method.summary, parameters: method.parameters && method.parameters.map((value) => {
                         return Object.assign(Object.assign({}, value), { type: this.definitionToType(value.schema || value) });
                     }) });
             });
@@ -448,36 +524,70 @@ class SwaggerParser {
 }
 
 /**
+ * 根据语言生成文件后缀名
+ * @param lang
+ * @returns
+ */
+function genFileExtensionByLang(lang) {
+    const langName = lang.toLowerCase();
+    let extension = '';
+    switch (langName) {
+        case 'js':
+        case 'javascript':
+            extension = '.js';
+            break;
+        case 'ts':
+        case 'typescript':
+            extension = '.ts';
+            break;
+    }
+    return extension;
+}
+
+const program = require('commander');
+/**
  * 生成service
  */
 function generateService(config) {
     return __awaiter(this, void 0, void 0, function* () {
         // rmdirsSync(config.path + config.servicePath);
-        mkdirsSync(config.path + config.servicePath);
-        // rmdirsSync(config.path + config.entityPath);
-        mkdirsSync(config.path + config.entityPath);
         const httpServiceGenerator = new HttpServiceGenerator();
+        if (!(config.isService || config.isEntity)) {
+            return true;
+        }
         for (const project of config.projects) {
+            const outputDir = path__default['default'].join(config.path, (project.output || ''));
+            if (project.output && project.clean) {
+                rmdirsSync(outputDir);
+            }
+            mkdirsSync(outputDir);
+            const servicesOutputDir = path__default['default'].join(outputDir, config.servicePath);
+            const entitiesOutputDir = path__default['default'].join(outputDir, config.entityPath);
             const parser = new SwaggerParser(project.url);
             const modules = yield parser.getApis();
-            const httpDependencies = modules.flatMap(module => {
+            const httpDependencies = modules.flatMap((module) => {
                 const includeModule = include(module, config.include);
                 const excludedModule = exclude(includeModule, config.exclude);
                 if (excludedModule.apis.length > 0) {
-                    const targetPath = config.path + config.servicePath;
-                    httpServiceGenerator.generate(Object.assign(Object.assign({}, excludedModule), { data: project.data, templatePath: config.serviceTemplatePath, targetPath }));
+                    const targetPath = servicesOutputDir;
+                    if (config.isService) {
+                        httpServiceGenerator.generate(Object.assign(Object.assign({}, excludedModule), { data: project.data, templatePath: config.serviceTemplatePath, entitiesPath: entitiesOutputDir, extension: genFileExtensionByLang(config.lang), targetPath }));
+                    }
                     return httpServiceGenerator.getDependencies(excludedModule);
                 }
                 return [];
             });
-            const entityGenerator = new EntityGenerator();
-            const entities = yield parser.getApiEntity();
-            const dependencies = getDependencies(entityGenerator, httpDependencies, entities);
-            entities.filter((value) => dependencies.includes(value.name))
-                .forEach((entity) => {
-                const targetPath = config.path + config.entityPath;
-                entityGenerator.generate(Object.assign(Object.assign({}, entity), { data: project.data, templatePath: config.entityTemplatePath, targetPath }));
-            });
+            if (config.isEntity) {
+                const entityGenerator = new EntityGenerator();
+                const entities = yield parser.getApiEntity();
+                const dependencies = getDependencies(entityGenerator, httpDependencies, entities);
+                entities
+                    .filter((value) => dependencies.includes(value.name))
+                    .forEach((entity) => {
+                    const targetPath = entitiesOutputDir;
+                    entityGenerator.generate(Object.assign(Object.assign({}, entity), { data: project.data, templatePath: config.entityTemplatePath, extension: genFileExtensionByLang(config.lang), targetPath }));
+                });
+            }
         }
     });
 }
@@ -493,7 +603,8 @@ function getDependencies(entityGenerator, dependencies, entities) {
     let mergeDependencies = dependencies; // 已搜索dependencies列表
     while (newDependencies.length > 0) {
         // 新增dependencies放进待搜索列表
-        newDependencies = entities.filter((value) => newDependencies.includes(value.name)) // 获取newDependencies的entities
+        newDependencies = entities
+            .filter((value) => newDependencies.includes(value.name)) // 获取newDependencies的entities
             .flatMap((value) => entityGenerator.getDependencies(value)) // 搜索待搜索dependencies列表
             .filter((value) => !mergeDependencies.includes(value)); // 不存在于已搜索dependencies，所以是新增dependencies
         mergeDependencies = mergeDependencies.concat(newDependencies); // 搜索过的放进已搜索dependencies列表
@@ -508,9 +619,9 @@ function include(module, includeList) {
         return Object.assign({}, module);
     }
     return Object.assign(Object.assign({}, module), { apis: module.apis.filter((api) => {
-            return includeList.some(value => {
-                return matching(value.path, api.path)
-                    && (value.methods == null || value.methods.includes(api.method));
+            return includeList.some((value) => {
+                return (matching(value.path, api.path) &&
+                    (value.methods == null || value.methods.includes(api.method)));
             });
         }) });
 }
@@ -522,9 +633,9 @@ function exclude(module, excludeList) {
         return Object.assign({}, module);
     }
     return Object.assign(Object.assign({}, module), { apis: module.apis.filter((api) => {
-            return !excludeList.some(value => {
-                return matching(value.path, api.path)
-                    && (value.methods == null || value.methods.includes(api.method));
+            return !excludeList.some((value) => {
+                return (matching(value.path, api.path) &&
+                    (value.methods == null || value.methods.includes(api.method)));
             });
         }) });
 }
@@ -532,7 +643,7 @@ function exclude(module, excludeList) {
  * 路径匹配
  */
 function matching(reg, input) {
-    return micromatch.isMatch(input, reg);
+    return micromatch__default['default'].isMatch(input, reg);
 }
 /**
  * 拷贝资源文件
@@ -544,7 +655,7 @@ function copyAssets(config) {
         }
         try {
             mkdirsSync(config.path);
-            yield fse.copy(config.assetsPath, config.path, { overwrite: true });
+            yield fse__default['default'].copy(config.assetsPath, config.path, { overwrite: true });
         }
         catch (e) {
             throw new Error('拷贝assets文件失败：\n' + e);
@@ -554,13 +665,15 @@ function copyAssets(config) {
 (function () {
     return __awaiter(this, void 0, void 0, function* () {
         program
-            .version(require('../package.json').version, '-v, --version') // tslint:disable-line
+            .version(require("../package.json").version, "-v, --version") // tslint:disable-line
             .usage('[options]');
         program.option('-c, --config', '配置文件路径').parse(process.argv);
         console.log('生成中...');
         try {
             const config = loadConfig(program.config);
-            yield copyAssets(config);
+            if (config.assetsPath) {
+                yield copyAssets(config);
+            }
             yield generateService(config);
             console.log('生成完成');
         }

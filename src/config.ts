@@ -1,8 +1,10 @@
 import path from 'path';
-
 export interface GeneratorConfig {
     path?: string; // 生成后保存路径
+
+    /** service的最后一级目录 */
     servicePath?: string;
+    /** entity的最后一级目录 */
     entityPath?: string;
     serviceTemplatePath?: string;
     entityTemplatePath?: string;
@@ -21,22 +23,31 @@ export interface GeneratorConfig {
             baseUrl: string; // 生成http文件名baseURL名称
             prefix: string; // 生成http文件名前缀
         };
+        output?: string; // 输出目录 追加在path后
+        clean?: boolean; // 是否生成前清除
     }[];
-    apiType: 'swagger' | 'yapi';
+    apiType?: 'swagger' | 'yapi';
     assetsPath?: string;
+    lang?: string; // 语言
+    isService?: boolean; // 是否生成services
+    isEntity?: boolean; // 是否生成entities
 }
 
-const defaultConfigPath = 'generate.conf.js';
+const defaultConfigPath = 'apicodegen.config.js';
 
+const pkgName = require('../package.json').name;
 const defaultConfig: GeneratorConfig = {
     path: 'src/app/api',
-    servicePath: '/http',
-    entityPath: '/entity',
+    servicePath: '/services',
+    entityPath: '/entities',
     projects: [],
     apiType: 'swagger',
-    serviceTemplatePath: 'node_modules/api-service-generator/template/service.js',
-    entityTemplatePath: 'node_modules/api-service-generator/template/entity.js',
-    assetsPath: 'node_modules/api-service-generator/template/assets'
+    serviceTemplatePath: `node_modules/${pkgName}/template/service.template.ts`,
+    entityTemplatePath: `node_modules/${pkgName}/template/entity.template.ts`,
+    // assetsPath: 'node_modules/api-service-generator/template/assets',
+    lang: 'ts',
+    isService: true,
+    isEntity: true
 };
 
 
