@@ -269,7 +269,7 @@ class HttpServiceGenerator extends ClassGenerator {
     }
     genImportations(apis = [], targetPath, entitiesPath) {
         const dependencies = this.apisToDependencies(apis);
-        const relativePath = path__default['default'].join(path__default['default'].relative(targetPath, entitiesPath), '/');
+        const relativePath = path__default['default'].relative(targetPath, entitiesPath).split(path__default['default'].sep).join('/');
         return dependencies.map(dep => ({
             name: dep,
             path: relativePath
