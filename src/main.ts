@@ -168,11 +168,11 @@ async function copyAssets(config: GeneratorConfig) {
   }
 }
 /**
- * 扩展执行命令，执行生成API后执行
+ * 扩展执行lint，执行生成API后执行
  */
-async function exceChildProcess(config: GeneratorConfig) {
+async function exceLintProcess(config: GeneratorConfig) {
   if (config.lint[0]) {
-    console.log('>lint fix');
+    console.log('> lint fix');
     await progress.spawnSync('node', [...config.lint[1].split(' '), config.path + '/**/*.ts', '--fix'], {
       stdio: 'inherit',
       cwd: process.cwd()
@@ -188,16 +188,16 @@ async function exceChildProcess(config: GeneratorConfig) {
   program.option('-c, --config', '配置文件路径').parse(process.argv);
 
   console.log('生成中...');
+  const config = loadConfig(program.config);
   try {
-    const config = loadConfig(program.config);
     if (config.assetsPath) {
       await copyAssets(config);
     }
     await generateService(config);
     console.log('生成完成\n');
-    await exceChildProcess(config);
   } catch (e) {
     console.error('生成失败');
     console.error(e);
   }
+  await exceLintProcess(config);
 })();

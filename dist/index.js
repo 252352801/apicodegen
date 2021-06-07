@@ -665,16 +665,17 @@ function copyAssets(config) {
     });
 }
 /**
- * 扩展执行命令，执行生成API后执行
+ * 扩展执行lint，执行生成API后执行
  */
-function exceChildProcess(config) {
+function exceLintProcess(config) {
     return __awaiter(this, void 0, void 0, function* () {
-        console.log('>lint fix');
-        return config.lint[0]
-            && (yield progress.spawnSync('node', [...config.lint[1].split(' '), config.path + '/**/*.ts', '--fix'], {
+        if (config.lint[0]) {
+            console.log('> lint fix');
+            yield progress.spawnSync('node', [...config.lint[1].split(' '), config.path + '/**/*.ts', '--fix'], {
                 stdio: 'inherit',
                 cwd: process.cwd()
-            }));
+            });
+        }
     });
 }
 (function () {
@@ -684,19 +685,19 @@ function exceChildProcess(config) {
             .usage('[options]');
         program.option('-c, --config', '配置文件路径').parse(process.argv);
         console.log('生成中...');
+        const config = loadConfig(program.config);
         try {
-            const config = loadConfig(program.config);
             if (config.assetsPath) {
                 yield copyAssets(config);
             }
             yield generateService(config);
             console.log('生成完成\n');
-            yield exceChildProcess(config);
         }
         catch (e) {
             console.error('生成失败');
             console.error(e);
         }
+        yield exceLintProcess(config);
     });
 })();
 
