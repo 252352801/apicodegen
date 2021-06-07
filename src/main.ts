@@ -11,6 +11,8 @@ import { mkdirsSync, rmdirsSync } from './uitls/fsUtils';
 import { genFileExtensionByLang } from './uitls';
 import path from 'path';
 const program = require('commander');
+const progress = require('child_process');
+const Win32 = process.platform === 'win32';
 /**
  * 生成service
  */
@@ -165,6 +167,18 @@ async function copyAssets(config: GeneratorConfig) {
     throw new Error('拷贝assets文件失败：\n' + e);
   }
 }
+/**
+ * 扩展执行命令，执行生成API后执行
+ */
+async function exceChildProcess(config: GeneratorConfig) {
+  if (config.lint[0]) {
+    console.log('>lint fix');
+    await progress.spawnSync('node', [...config.lint[1].split(' '), config.path + '/**/*.ts', '--fix'], {
+      stdio: 'inherit',
+      cwd: process.cwd()
+    });
+  }
+}
 
 (async function () {
   program
@@ -180,7 +194,8 @@ async function copyAssets(config: GeneratorConfig) {
       await copyAssets(config);
     }
     await generateService(config);
-    console.log('生成完成');
+    console.log('生成完成\n');
+    await exceChildProcess(config);
   } catch (e) {
     console.error('生成失败');
     console.error(e);

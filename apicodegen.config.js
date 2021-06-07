@@ -20,7 +20,8 @@ module.exports = {
             clean: true,
         }
     ],
-    lang: 'ts'
+    lang: 'ts',
+    lint: [true, 'node_modules/tslint/bin/tslint -c tslint.json']
     // isEntity: true
     // assetsPath: './template/assets',
 };

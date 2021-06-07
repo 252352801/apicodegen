@@ -31,6 +31,7 @@ export interface GeneratorConfig {
     lang?: string; // 语言
     isService?: boolean; // 是否生成services
     isEntity?: boolean; // 是否生成entities
+    lint?: [boolean, string]; // lint修复
 }
 
 const defaultConfigPath = 'apicodegen.config.js';
@@ -60,5 +61,3 @@ export function loadConfig(configPath: string = defaultConfigPath): GeneratorCon
         throw new Error(`加载配置文件失败:${absolutePath}\n' ${e}`);
     }
 }
-
-

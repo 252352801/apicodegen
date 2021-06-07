@@ -41,25 +41,26 @@ var Mustache__default = /*#__PURE__*/_interopDefaultLegacy(Mustache);
 var axios__default = /*#__PURE__*/_interopDefaultLegacy(axios);
 
 /*! *****************************************************************************
-Copyright (c) Microsoft Corporation. All rights reserved.
-Licensed under the Apache License, Version 2.0 (the "License"); you may not use
-this file except in compliance with the License. You may obtain a copy of the
-License at http://www.apache.org/licenses/LICENSE-2.0
+Copyright (c) Microsoft Corporation.
 
-THIS CODE IS PROVIDED ON AN *AS IS* BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-KIND, EITHER EXPRESS OR IMPLIED, INCLUDING WITHOUT LIMITATION ANY IMPLIED
-WARRANTIES OR CONDITIONS OF TITLE, FITNESS FOR A PARTICULAR PURPOSE,
-MERCHANTABLITY OR NON-INFRINGEMENT.
+Permission to use, copy, modify, and/or distribute this software for any
+purpose with or without fee is hereby granted.
 
-See the Apache Version 2.0 License for specific language governing permissions
-and limitations under the License.
+THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH
+REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY
+AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT,
+INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
+LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE.
 ***************************************************************************** */
 
 function __awaiter(thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
     return new (P || (P = Promise))(function (resolve, reject) {
         function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
         function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : new P(function (resolve) { resolve(result.value); }).then(fulfilled, rejected); }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 }
@@ -367,8 +368,7 @@ class HttpServiceGenerator extends ClassGenerator {
                 str += params ? params.filter(value => value.in === 'query').map(value => value.name).join(', ') : '';
                 str += '}';
                 return str === '{}' ? '' : str;
-            },
-            pathString() {
+            }, pathString() {
                 let str = '`';
                 str += this.path.replace(/{/g, '${');
                 str += '`';
@@ -434,7 +434,7 @@ class SwaggerParser {
             const methods = paths[pathsKey];
             return Object.keys(methods).map((methodsKey) => {
                 const method = methods[methodsKey];
-                return Object.assign(Object.assign({}, method), { path: pathsKey, method: methodsKey, name: method.operationId, result: this.definitionToType(method.responses['200'].schema), description: method.summary, parameters: method.parameters && method.parameters.map((value) => {
+                return Object.assign(Object.assign({}, method), { path: pathsKey, method: methodsKey, name: this.getApiName(pathsKey, methodsKey), result: this.definitionToType(method.responses['200'].schema), description: method.summary, parameters: method.parameters && method.parameters.map((value) => {
                         return Object.assign(Object.assign({}, value), { type: this.definitionToType(value.schema || value) });
                     }) });
             });
@@ -545,6 +545,8 @@ function genFileExtensionByLang(lang) {
 }
 
 const program = require('commander');
+const progress = require('child_process');
+process.platform === 'win32';
 /**
  * 生成service
  */
@@ -662,6 +664,19 @@ function copyAssets(config) {
         }
     });
 }
+/**
+ * 扩展执行命令，执行生成API后执行
+ */
+function exceChildProcess(config) {
+    return __awaiter(this, void 0, void 0, function* () {
+        console.log('>lint fix');
+        return config.lint[0]
+            && (yield progress.spawnSync('node', [...config.lint[1].split(' '), config.path + '/**/*.ts', '--fix'], {
+                stdio: 'inherit',
+                cwd: process.cwd()
+            }));
+    });
+}
 (function () {
     return __awaiter(this, void 0, void 0, function* () {
         program
@@ -675,7 +690,8 @@ function copyAssets(config) {
                 yield copyAssets(config);
             }
             yield generateService(config);
-            console.log('生成完成');
+            console.log('生成完成\n');
+            yield exceChildProcess(config);
         }
         catch (e) {
             console.error('生成失败');
