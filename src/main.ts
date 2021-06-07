@@ -173,7 +173,7 @@ async function copyAssets(config: GeneratorConfig) {
 async function exceLintProcess(config: GeneratorConfig) {
   if (config.lint[0]) {
     console.log('> lint fix');
-    await progress.spawnSync('node', [...config.lint[1].split(' '), config.path + '/**/*.ts', '--fix'], {
+    await progress.spawnSync('node', [...config.lint[1].split(' '), config.path + '/**/*.*', '--fix'], {
       stdio: 'inherit',
       cwd: process.cwd()
     });
