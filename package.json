@@ -1,5 +1,5 @@
 {
-  "name": "apicodegen",
+  "name": "@sp/apicodegen",
   "version": "0.1.4",
   "description": "api generator",
   "main": "dist/index.js",
