@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { ApiData, Definition, EntityGenerateData, HttpServiceGenerateData } from '../core';
+import { transformPaths } from '../uitls';
 import Parser from './Parser';
 
 export default class SwaggerParser implements Parser {
@@ -20,11 +21,11 @@ export default class SwaggerParser implements Parser {
     /**
      * 获取api数据
      */
-    public async getApis(): Promise<HttpServiceGenerateData[]> {
+    public async getApis(baseUrl?: string): Promise<HttpServiceGenerateData[]> {
         if (this.response == null) {
             await this.loadResponse();
         }
-        return this.transformApis(this.response.data);
+        return this.transformApis(this.response.data, baseUrl);
     }
 
     /**
@@ -40,9 +41,10 @@ export default class SwaggerParser implements Parser {
     /**
      * 把swagger返回的对象转成需要的格式
      */
-    public transformApis(data: any): HttpServiceGenerateData[] {
+    public transformApis(data: any, baseUrl?: string): HttpServiceGenerateData[] {
 
-        const apis = this.pathsToApis(data.paths);
+        const apis = this.pathsToApis(data.paths, baseUrl);
+
         return data.tags.map((tag: any) => {
             return {
                 ...tag,
@@ -54,14 +56,14 @@ export default class SwaggerParser implements Parser {
     /**
      * 把swagger的path对象转成需要的格式
      */
-    private pathsToApis(paths: any): Array<ApiData & { tags: string }> {
+    private pathsToApis(paths: any, baseUrl?: string): Array<ApiData & { tags: string }> {
         return Object.keys(paths).flatMap(pathsKey => {
             const methods = paths[pathsKey];
             return Object.keys(methods).map((methodsKey) => {
                 const method = methods[methodsKey];
                 return {
                     ...method,
-                    path: pathsKey,
+                    path: transformPaths(pathsKey, baseUrl),
                     method: methodsKey,
                     name: this.getApiName(pathsKey, methodsKey),
                     result: this.definitionToType(method.responses['200'].schema),

@@ -41,26 +41,25 @@ var Mustache__default = /*#__PURE__*/_interopDefaultLegacy(Mustache);
 var axios__default = /*#__PURE__*/_interopDefaultLegacy(axios);
 
 /*! *****************************************************************************
-Copyright (c) Microsoft Corporation.
+Copyright (c) Microsoft Corporation. All rights reserved.
+Licensed under the Apache License, Version 2.0 (the "License"); you may not use
+this file except in compliance with the License. You may obtain a copy of the
+License at http://www.apache.org/licenses/LICENSE-2.0
 
-Permission to use, copy, modify, and/or distribute this software for any
-purpose with or without fee is hereby granted.
+THIS CODE IS PROVIDED ON AN *AS IS* BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+KIND, EITHER EXPRESS OR IMPLIED, INCLUDING WITHOUT LIMITATION ANY IMPLIED
+WARRANTIES OR CONDITIONS OF TITLE, FITNESS FOR A PARTICULAR PURPOSE,
+MERCHANTABLITY OR NON-INFRINGEMENT.
 
-THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH
-REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY
-AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT,
-INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
-LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
-OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
-PERFORMANCE OF THIS SOFTWARE.
+See the Apache Version 2.0 License for specific language governing permissions
+and limitations under the License.
 ***************************************************************************** */
 
 function __awaiter(thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
     return new (P || (P = Promise))(function (resolve, reject) {
         function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
         function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        function step(result) { result.done ? resolve(result.value) : new P(function (resolve) { resolve(result.value); }).then(fulfilled, rejected); }
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 }
@@ -380,6 +379,49 @@ class HttpServiceGenerator extends ClassGenerator {
     }
 }
 
+/**
+ * 根据语言生成文件后缀名
+ * @param lang
+ * @returns
+ */
+function genFileExtensionByLang(lang) {
+    const langName = lang.toLowerCase();
+    let extension = '';
+    switch (langName) {
+        case 'js':
+        case 'javascript':
+            extension = '.js';
+            break;
+        case 'ts':
+        case 'typescript':
+            extension = '.ts';
+            break;
+    }
+    return extension;
+}
+/**
+ * project.data.baseUrl
+ * 如带有baseUrl，将会判断path中是否有包含，是的话则从path删除重复的baseUrl
+ */
+function transformPaths(path, baseUrl) {
+    let _path = '';
+    if (baseUrl) {
+        const match = path.match(new RegExp(`/${baseUrl}`));
+        const index = match && match.index;
+        if (index === 0) {
+            const value = match[0];
+            _path = path.replace(value, '');
+        }
+        else {
+            _path = path;
+        }
+    }
+    else {
+        _path = path;
+    }
+    return _path;
+}
+
 class SwaggerParser {
     constructor(url) {
         this.url = url;
@@ -398,12 +440,12 @@ class SwaggerParser {
     /**
      * 获取api数据
      */
-    getApis() {
+    getApis(baseUrl) {
         return __awaiter(this, void 0, void 0, function* () {
             if (this.response == null) {
                 yield this.loadResponse();
             }
-            return this.transformApis(this.response.data);
+            return this.transformApis(this.response.data, baseUrl);
         });
     }
     /**
@@ -420,8 +462,8 @@ class SwaggerParser {
     /**
      * 把swagger返回的对象转成需要的格式
      */
-    transformApis(data) {
-        const apis = this.pathsToApis(data.paths);
+    transformApis(data, baseUrl) {
+        const apis = this.pathsToApis(data.paths, baseUrl);
         return data.tags.map((tag) => {
             return Object.assign(Object.assign({}, tag), { apis: apis.filter((value) => value.tags.indexOf(tag.name) !== -1) });
         });
@@ -429,12 +471,12 @@ class SwaggerParser {
     /**
      * 把swagger的path对象转成需要的格式
      */
-    pathsToApis(paths) {
+    pathsToApis(paths, baseUrl) {
         return Object.keys(paths).flatMap(pathsKey => {
             const methods = paths[pathsKey];
             return Object.keys(methods).map((methodsKey) => {
                 const method = methods[methodsKey];
-                return Object.assign(Object.assign({}, method), { path: pathsKey, method: methodsKey, name: this.getApiName(pathsKey, methodsKey), result: this.definitionToType(method.responses['200'].schema), description: method.summary, parameters: method.parameters && method.parameters.map((value) => {
+                return Object.assign(Object.assign({}, method), { path: transformPaths(pathsKey, baseUrl), method: methodsKey, name: this.getApiName(pathsKey, methodsKey), result: this.definitionToType(method.responses['200'].schema), description: method.summary, parameters: method.parameters && method.parameters.map((value) => {
                         return Object.assign(Object.assign({}, value), { type: this.definitionToType(value.schema || value) });
                     }) });
             });
@@ -523,27 +565,6 @@ class SwaggerParser {
     }
 }
 
-/**
- * 根据语言生成文件后缀名
- * @param lang
- * @returns
- */
-function genFileExtensionByLang(lang) {
-    const langName = lang.toLowerCase();
-    let extension = '';
-    switch (langName) {
-        case 'js':
-        case 'javascript':
-            extension = '.js';
-            break;
-        case 'ts':
-        case 'typescript':
-            extension = '.ts';
-            break;
-    }
-    return extension;
-}
-
 const program = require('commander');
 const progress = require('child_process');
 process.platform === 'win32';
@@ -566,7 +587,7 @@ function generateService(config) {
             const servicesOutputDir = path__default['default'].join(outputDir, config.servicePath);
             const entitiesOutputDir = path__default['default'].join(outputDir, config.entityPath);
             const parser = new SwaggerParser(project.url);
-            const modules = yield parser.getApis();
+            const modules = yield parser.getApis(project.data.baseUrl);
             const httpDependencies = modules.flatMap((module) => {
                 const includeModule = include(module, config.include);
                 const excludedModule = exclude(includeModule, config.exclude);
@@ -671,7 +692,7 @@ function exceLintProcess(config) {
     return __awaiter(this, void 0, void 0, function* () {
         if (config.lint[0]) {
             console.log('> lint fix');
-            yield progress.spawnSync('node', [...config.lint[1].split(' '), config.path + '/**/*.ts', '--fix'], {
+            yield progress.spawnSync('node', [...config.lint[1].split(' '), config.path + '/**/*.*', '--fix'], {
                 stdio: 'inherit',
                 cwd: process.cwd()
             });

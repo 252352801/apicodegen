@@ -31,7 +31,7 @@ export async function generateService(config: GeneratorConfig) {
     const servicesOutputDir = path.join(outputDir, config.servicePath);
     const entitiesOutputDir = path.join(outputDir, config.entityPath);
     const parser = new SwaggerParser(project.url);
-    const modules: HttpServiceGenerateData[] = await parser.getApis();
+    const modules: HttpServiceGenerateData[] = await parser.getApis(project.data.baseUrl);
     const httpDependencies = modules.flatMap((module) => {
       const includeModule = include(module, config.include);
       const excludedModule = exclude(includeModule, config.exclude);

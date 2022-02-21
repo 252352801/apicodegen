@@ -29,7 +29,7 @@ import { {{{name}}} } from '{{{path}}}/{{{name}}}';
 
   {{/params}}
   /**
-   * {{{description}}}{{#deprecated}}
+   * {{{description}}}{{#deprecated}}\n
    * @deprecated{{/deprecated}}{{#data}}
    * @param data <{{{name}}}>\n{{/data}}{{#params}}
    * @param params <{{{name}}}>\n{{/params}}

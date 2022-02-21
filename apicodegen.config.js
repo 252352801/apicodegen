@@ -3,7 +3,7 @@ module.exports = {
     serviceTemplatePath: './template/service.template.ts',
     entityTemplatePath: './template/entity.template.ts',
     include: [
-        { path: '**' },
+        { path: '/auth/authWriteBack' },
     ], // 包含需要生产的接口
     // exclude: [
     //     {path: '**', methods: ['delete', 'put', 'options', 'patch', 'head']},
@@ -11,8 +11,9 @@ module.exports = {
     // ], // 不生成的接口过滤，会覆盖include配置
     projects: [
         {
-            url: 'http://127.0.0.1:8080/data.json',
+            url: 'http://127.0.0.1:8082/data.json',
             data: {
+                baseUrl: 'shopeebiz',
                 requestFunction: 'request',
                 requestFunctionFrom: '@/core/request',
             },
