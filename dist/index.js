@@ -70,14 +70,17 @@ const defaultConfig = {
     path: 'src/app/api',
     servicePath: '/services',
     entityPath: '/entities',
+    requestPath: '/request',
     projects: [],
     apiType: 'swagger',
     serviceTemplatePath: `node_modules/${pkgName}/template/service.template.ts`,
     entityTemplatePath: `node_modules/${pkgName}/template/entity.template.ts`,
+    requestTemplatePath: `node_modules/${pkgName}/template/request.template.ts`,
     // assetsPath: 'node_modules/api-service-generator/template/assets',
     lang: 'ts',
     isService: true,
-    isEntity: true
+    isEntity: true,
+    isRequest: true,
 };
 function loadConfig(configPath = defaultConfigPath) {
     const absolutePath = path__default['default'].join(process.cwd(), configPath);
@@ -421,6 +424,36 @@ function transformPaths(path, baseUrl) {
     }
     return _path;
 }
+function matchStar(pattern, replacePattern, search) {
+    if (search.length < pattern.length) {
+        return undefined;
+    }
+    if (pattern === '*') {
+        return createPath(replacePattern, search);
+    }
+    const star = pattern.indexOf('*');
+    if (star === -1) {
+        return undefined;
+    }
+    const part1 = pattern.substring(0, star);
+    const part2 = pattern.substring(star + 1);
+    if (search.substr(0, star) !== part1) {
+        return undefined;
+    }
+    if (search.substr(search.length - part2.length) !== part2) {
+        return undefined;
+    }
+    return createPath(replacePattern, search.substr(star, search.length - part2.length));
+}
+function createPath(pattern, search) {
+    if (pattern.indexOf('*') !== -1) {
+        const star = pattern.substring(0, pattern.indexOf('*'));
+        return star + search;
+    }
+    else {
+        return search;
+    }
+}
 
 class SwaggerParser {
     constructor(url) {
@@ -565,6 +598,18 @@ class SwaggerParser {
     }
 }
 
+class RequestGenerator extends FileGenerator {
+    getTemplateModel(data) {
+        return {
+            baseUrl: data.data.baseUrl,
+            filename: data.name + data.extension,
+        };
+    }
+    generate(data) {
+        super.generate(data);
+    }
+}
+
 const program = require('commander');
 const progress = require('child_process');
 process.platform === 'win32';
@@ -611,6 +656,43 @@ function generateService(config) {
                     entityGenerator.generate(Object.assign(Object.assign({}, entity), { data: project.data, templatePath: config.entityTemplatePath, extension: genFileExtensionByLang(config.lang), targetPath }));
                 });
             }
+        }
+    });
+}
+/**
+ * 生成request 只支持ts
+ */
+function generateRequest(config) {
+    var _a;
+    return __awaiter(this, void 0, void 0, function* () {
+        if (config.lang !== 'ts') {
+            return;
+        }
+        const requestGenerator = new RequestGenerator();
+        const tsConfig = require(path__default['default'].join(process.cwd(), 'tsconfig'));
+        if (!(config.isRequest)) {
+            return true;
+        }
+        for (const project of config.projects) {
+            Object.keys((_a = tsConfig === null || tsConfig === void 0 ? void 0 : tsConfig.compilerOptions) === null || _a === void 0 ? void 0 : _a.paths).forEach(key => {
+                var _a;
+                (_a = tsConfig === null || tsConfig === void 0 ? void 0 : tsConfig.compilerOptions) === null || _a === void 0 ? void 0 : _a.paths[key].forEach((pattern) => {
+                    const filePathStar = project.data.requestFunctionFrom.substring(0, project.data.requestFunctionFrom.lastIndexOf('/'));
+                    const filePathEnd = project.data.requestFunctionFrom.substring(project.data.requestFunctionFrom.lastIndexOf('/') + 1);
+                    const matchPath = matchStar(key, pattern, filePathStar);
+                    if (matchPath && project.data.autoGenRequestFile) {
+                        const outputDir = path__default['default'].join(process.cwd(), matchStar(key, pattern, filePathStar));
+                        mkdirsSync(outputDir);
+                        requestGenerator.generate({
+                            templatePath: config.requestTemplatePath,
+                            data: project.data,
+                            targetPath: `${outputDir}`,
+                            name: filePathEnd,
+                            extension: genFileExtensionByLang(config.lang)
+                        });
+                    }
+                });
+            });
         }
     });
 }
@@ -712,6 +794,7 @@ function exceLintProcess(config) {
                 yield copyAssets(config);
             }
             yield generateService(config);
+            yield generateRequest(config);
             console.log('生成完成\n');
         }
         catch (e) {
@@ -722,4 +805,5 @@ function exceLintProcess(config) {
     });
 })();
 
+exports.generateRequest = generateRequest;
 exports.generateService = generateService;

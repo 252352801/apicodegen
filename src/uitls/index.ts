@@ -41,3 +41,34 @@ export function transformPaths(path: string, baseUrl: string) {
     }
     return _path;
 }
+
+export function matchStar(pattern: string, replacePattern: string, search: string): string | undefined {
+    if (search.length < pattern.length) {
+        return undefined;
+    }
+    if (pattern === '*') {
+        return createPath(replacePattern, search);
+    }
+    const star = pattern.indexOf('*');
+    if (star === -1) {
+        return undefined;
+    }
+    const part1 = pattern.substring(0, star);
+    const part2 = pattern.substring(star + 1);
+    if (search.substr(0, star) !== part1) {
+        return undefined;
+    }
+    if (search.substr(search.length - part2.length) !== part2) {
+        return undefined;
+    }
+    return createPath(replacePattern, search.substr(star, search.length - part2.length));
+}
+
+export function createPath(pattern: string, search: string) {
+    if (pattern.indexOf('*') !== -1) {
+        const star = pattern.substring(0, pattern.indexOf('*'));
+        return star + search;
+    } else {
+        return search;
+    }
+}

@@ -8,8 +8,10 @@ import HttpServiceGenerator from './generator/HttpServiceGenerator';
 import SwaggerParser from './parser/SwaggerParser';
 import { mkdirsSync, rmdirsSync } from './uitls/fsUtils';
 // import program from 'commander';
-import { genFileExtensionByLang } from './uitls';
+import { createPath, genFileExtensionByLang, matchStar } from './uitls';
 import path from 'path';
+import RequestGenerator from './generator/RequestGenerator';
+import { getKebabCase } from './uitls/caseUtils';
 const program = require('commander');
 const progress = require('child_process');
 const Win32 = process.platform === 'win32';
@@ -72,6 +74,43 @@ export async function generateService(config: GeneratorConfig) {
           });
         });
     }
+  }
+}
+
+/**
+ * 生成request 只支持ts
+ */
+export async function generateRequest(config: GeneratorConfig) {
+  if (config.lang !== 'ts') {
+    return;
+  }
+  const requestGenerator = new RequestGenerator();
+  const tsConfig = require(path.join(process.cwd(), 'tsconfig'));
+  if (!(config.isRequest)) {
+    return true;
+  }
+  for (const project of config.projects) {
+    Object.keys(tsConfig?.compilerOptions?.paths).forEach(key => {
+      tsConfig?.compilerOptions?.paths[key].forEach((pattern: any) => {
+        const filePathStar = project.data.requestFunctionFrom.substring(0, project.data.requestFunctionFrom.lastIndexOf('/'));
+        const filePathEnd = project.data.requestFunctionFrom.substring(project.data.requestFunctionFrom.lastIndexOf('/') + 1);
+        const matchPath = matchStar(key, pattern, filePathStar);
+        if (matchPath && project.data.autoGenRequestFile) {
+          const outputDir = path.join(process.cwd(), matchStar(key, pattern, filePathStar));
+          mkdirsSync(outputDir);
+          requestGenerator.generate(
+            {
+              templatePath: config.requestTemplatePath,
+              data: project.data,
+              targetPath: `${outputDir}`,
+              name: filePathEnd,
+              extension: genFileExtensionByLang(config.lang)
+            }
+          );
+        }
+      });
+    });
+
   }
 }
 
@@ -189,11 +228,13 @@ async function exceLintProcess(config: GeneratorConfig) {
 
   console.log('生成中...');
   const config = loadConfig(program.config);
+
   try {
     if (config.assetsPath) {
       await copyAssets(config);
     }
     await generateService(config);
+    await generateRequest(config);
     console.log('生成完成\n');
   } catch (e) {
     console.error('生成失败');

@@ -26,6 +26,11 @@ export interface HttpServiceGenerateData extends ClassGenerateData {
     extension?: string;
     entitiesPath?: string;
 }
+
+export interface RequestGeneratorData extends ClassGenerateData {
+    description?: string;
+    extension?: string;
+}
 export interface ApiData {
     description?: string;
     method?: 'get' | 'post' | 'delete' | 'put' | 'options' | 'patch' | 'head';
@@ -54,4 +59,3 @@ export interface Dependence {
     name: string;
     path: string;
 }
-
