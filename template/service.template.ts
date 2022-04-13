@@ -10,14 +10,22 @@ import { {{{name}}} } from '{{{path}}}/{{{name}}}';
   {{#apis}}
 // **********************************************************************************
 
+
   {{#data}}
+  {{^simpleData}}
   export interface {{{name}}} {
     {{#fields}}
     /** {{{description}}} */
     {{{name}}}{{^required}}?{{/required}}: {{{typeString}}};
     {{/fields}}
   }
-
+  {{/simpleData}}
+  {{#simpleData}}
+  {{#fields}}
+  /** {{{description}}} */
+  export type {{{simpleName}}} = {{{typeString}}};
+  {{/fields}}
+  {{/simpleData}}\n
   {{/data}}
   {{#params}}
   export interface {{{name}}} {
@@ -25,13 +33,12 @@ import { {{{name}}} } from '{{{path}}}/{{{name}}}';
     /** {{{description}}} */
     {{{name}}}{{{^required}}}?{{{/required}}}: {{{typeString}}};
     {{/fields}}
-  }
-
+  }\n
   {{/params}}
   /**
    * {{{description}}}{{#deprecated}}\n
    * @deprecated{{/deprecated}}{{#data}}
-   * @param data <{{{name}}}>\n{{/data}}{{#params}}
+   * @param data <{{{name}}}>\n{{/data}}{{#params}}\n
    * @param params <{{{name}}}>\n{{/params}}
    * @param options (axios)请求选项参数
    */

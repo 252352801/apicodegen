@@ -332,7 +332,7 @@ class HttpServiceGenerator extends ClassGenerator {
                 });
                 const apiName = getLowerCamelCase(value.name);
                 const apiTypeName = apiName.replace(/(^\w)/, $1 => $1.toUpperCase());
-                return Object.assign(Object.assign({}, value), { name: apiName, returnType: getTypeString(value.result), data: dataItems.length ? {
+                return Object.assign(Object.assign({}, value), { name: apiName, returnType: getTypeString(value.result), simpleData: dataItems.length <= 1, simpleName: `${apiTypeName}Data`, data: dataItems.length ? {
                         name: `${apiTypeName}Data`,
                         fields: dataItems,
                     } : null, params: paramsItems.length ? {
@@ -682,14 +682,16 @@ function generateRequest(config) {
                     const matchPath = matchStar(key, pattern, filePathStar);
                     if (matchPath && project.data.autoGenRequestFile) {
                         const outputDir = path__default['default'].join(process.cwd(), matchStar(key, pattern, filePathStar));
-                        mkdirsSync(outputDir);
-                        requestGenerator.generate({
-                            templatePath: config.requestTemplatePath,
-                            data: project.data,
-                            targetPath: `${outputDir}`,
-                            name: filePathEnd,
-                            extension: genFileExtensionByLang(config.lang)
-                        });
+                        if (!fs__default['default'].existsSync(outputDir)) {
+                            mkdirsSync(outputDir);
+                            requestGenerator.generate({
+                                templatePath: config.requestTemplatePath,
+                                data: project.data,
+                                targetPath: `${outputDir}`,
+                                name: filePathEnd,
+                                extension: genFileExtensionByLang(config.lang)
+                            });
+                        }
                     }
                 });
             });

@@ -12,6 +12,7 @@ import { createPath, genFileExtensionByLang, matchStar } from './uitls';
 import path from 'path';
 import RequestGenerator from './generator/RequestGenerator';
 import { getKebabCase } from './uitls/caseUtils';
+import fs from 'fs';
 const program = require('commander');
 const progress = require('child_process');
 const Win32 = process.platform === 'win32';
@@ -97,16 +98,18 @@ export async function generateRequest(config: GeneratorConfig) {
         const matchPath = matchStar(key, pattern, filePathStar);
         if (matchPath && project.data.autoGenRequestFile) {
           const outputDir = path.join(process.cwd(), matchStar(key, pattern, filePathStar));
-          mkdirsSync(outputDir);
-          requestGenerator.generate(
-            {
-              templatePath: config.requestTemplatePath,
-              data: project.data,
-              targetPath: `${outputDir}`,
-              name: filePathEnd,
-              extension: genFileExtensionByLang(config.lang)
-            }
-          );
+          if (!fs.existsSync(outputDir)) {
+            mkdirsSync(outputDir);
+            requestGenerator.generate(
+              {
+                templatePath: config.requestTemplatePath,
+                data: project.data,
+                targetPath: `${outputDir}`,
+                name: filePathEnd,
+                extension: genFileExtensionByLang(config.lang)
+              }
+            );
+          }
         }
       });
     });

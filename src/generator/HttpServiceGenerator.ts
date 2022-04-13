@@ -101,6 +101,8 @@ export default class HttpServiceGenerator extends ClassGenerator {
                     ...value,
                     name: apiName,
                     returnType: getTypeString(value.result),
+                    simpleData: dataItems.length <= 1,
+                    simpleName: `${apiTypeName}Data`,
                     data: dataItems.length ? {
                         name: `${apiTypeName}Data`,
                         fields: dataItems,
