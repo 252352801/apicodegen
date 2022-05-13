@@ -98,15 +98,18 @@ export async function generateRequest(config: GeneratorConfig) {
         const matchPath = matchStar(key, pattern, filePathStar);
         if (matchPath && project.data.autoGenRequestFile) {
           const outputDir = path.join(process.cwd(), matchStar(key, pattern, filePathStar));
-          if (!fs.existsSync(outputDir)) {
+          const fileObj = {
+            targetPath: `${outputDir}`,
+            name: filePathEnd,
+            extension: genFileExtensionByLang(config.lang)
+          };
+          if (!fs.existsSync(`${fileObj.targetPath}${path.sep}${fileObj.name}${fileObj.extension}`)) {
             mkdirsSync(outputDir);
             requestGenerator.generate(
               {
                 templatePath: config.requestTemplatePath,
                 data: project.data,
-                targetPath: `${outputDir}`,
-                name: filePathEnd,
-                extension: genFileExtensionByLang(config.lang)
+                ...fileObj
               }
             );
           }

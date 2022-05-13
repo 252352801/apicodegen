@@ -682,15 +682,14 @@ function generateRequest(config) {
                     const matchPath = matchStar(key, pattern, filePathStar);
                     if (matchPath && project.data.autoGenRequestFile) {
                         const outputDir = path__default['default'].join(process.cwd(), matchStar(key, pattern, filePathStar));
-                        if (!fs__default['default'].existsSync(outputDir)) {
+                        const fileObj = {
+                            targetPath: `${outputDir}`,
+                            name: filePathEnd,
+                            extension: genFileExtensionByLang(config.lang)
+                        };
+                        if (!fs__default['default'].existsSync(`${fileObj.targetPath}${path__default['default'].sep}${fileObj.name}${fileObj.extension}`)) {
                             mkdirsSync(outputDir);
-                            requestGenerator.generate({
-                                templatePath: config.requestTemplatePath,
-                                data: project.data,
-                                targetPath: `${outputDir}`,
-                                name: filePathEnd,
-                                extension: genFileExtensionByLang(config.lang)
-                            });
+                            requestGenerator.generate(Object.assign({ templatePath: config.requestTemplatePath, data: project.data }, fileObj));
                         }
                     }
                 });

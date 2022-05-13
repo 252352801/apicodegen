@@ -17,7 +17,7 @@ module.exports = {
                 baseUrl: 'shopeebiz', // 去掉此项，则 include.path 开头需带上/common 【/common/auth/authWriteBack】
                 requestFunction: 'request',
                 requestFunctionFrom: '@/request/shopeebiz',
-                autoGenRequestFile: false, // 开启此项，将自动生成requestFunctionFrom文件所在路径及代码 可结合tsconfig.compilerOptions.paths
+                autoGenRequestFile: true, // 开启此项，将自动生成requestFunctionFrom文件所在路径及代码 可结合tsconfig.compilerOptions.paths
             },
             output: '/api',
             clean: false,
